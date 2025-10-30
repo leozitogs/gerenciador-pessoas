@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # permite o push da action
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (root)
+        run: pnpm build
+
+      # opcional: evita 404 em SPA ao recarregar
+      - name: Copy 404 (SPA fallback)
+        run: cp dist/index.html dist/404.html
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist            # <<--- aqui o ajuste
+          publish_branch: gh-pages
+          # force_orphan: true           # útil no primeiro deploy
