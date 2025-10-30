@@ -3,30 +3,45 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
+# dá poderes de escrita ao token deste job
+permissions:
+  contents: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - uses: pnpm/action-setup@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false   # evita travar com token só leitura
+          fetch-depth: 0               # garante histórico se precisar
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
         with:
           version: 8
-      
-      - uses: actions/setup-node@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'pnpm'
-      
+
       - name: Install dependencies
-        run: pnpm install
-      
+        run: pnpm install --frozen-lockfile
+
       - name: Build
+        # se o build estiver dentro de client, você pode usar:
+        # working-directory: ./client
         run: pnpm build
-      
+
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./client/dist
+          publish_dir: ./client/dist        # confirme se sua saída é essa
+          publish_branch: gh-pages          # branch de pages
+          # force_orphan: true              # útil no 1º deploy para limpar histórico
