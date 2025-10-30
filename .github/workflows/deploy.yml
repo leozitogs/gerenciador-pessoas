@@ -20,6 +20,10 @@ jobs:
 
       - uses: pnpm/action-setup@v2
         with:
+          version: 10.4.1  # <— igual ao local
+
+      - uses: pnpm/action-setup@v2
+        with:
           version: 8
 
       - uses: actions/setup-node@v4
