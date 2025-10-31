@@ -23,25 +23,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4   # 👈 sem 'version'
         with:
-          version: 9
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: pnpm
 
-      # Evita o erro do frozen lockfile no CI
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
-      # ⚠️ Importante: build na RAIZ (o seu vite.config já define root: client/)
       - name: Build (Vite)
         run: pnpm build
 
-      # SPA fallback: copia index.html -> 404.html no outDir configurado
       - name: SPA fallback
         run: cp dist/public/index.html dist/public/404.html
 
