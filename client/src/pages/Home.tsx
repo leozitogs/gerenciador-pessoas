@@ -9,7 +9,7 @@ import { ExportPDFDialog } from '@/components/ExportPDFDialog';
 import { usePeople } from '@/hooks/usePeople';
 import { usePDFExport } from '@/hooks/usePDFExport';
 import { toast } from 'sonner';
-import { Trash2, Undo2, FileDown, Users } from 'lucide-react';
+import { Trash2, Undo2, FileDown, Users, Eye, EyeOff} from 'lucide-react';
 import type { Person, PDFExportType } from '@/lib/types';
 import { APP_TITLE } from '@/const';
 
@@ -33,6 +33,9 @@ export default function Home() {
   const [personToRemove, setPersonToRemove] = useState<string | null>(null);
   const [showRemoveAllDialog, setShowRemoveAllDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  // controla se CPF/RG aparece camuflado
+  const [maskDocuments, setMaskDocuments] = useState(true);
+
 
   const handleAddPerson = (data: Omit<Person, 'id' | 'createdAt'>) => {
     addPerson(data);
@@ -156,6 +159,19 @@ export default function Home() {
                     <FileDown className="h-4 w-4" />
                     Exportar PDF
                   </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMaskDocuments(v => !v)}
+                    className="gap-2"
+                    aria-pressed={!maskDocuments}
+                    title={maskDocuments ? 'Mostrar documento' : 'Ocultar documento'}
+                  >
+                    {maskDocuments ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {maskDocuments ? 'Mostrar Doc.' : 'Ocultar Doc.'}
+                  </Button>
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -184,6 +200,7 @@ export default function Home() {
               people={people}
               onEdit={setEditingPerson}
               onRemove={setPersonToRemove}
+              maskDocuments={maskDocuments} 
             />
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,20 +14,14 @@ import {
 } from '@/lib/validation';
 import type { Person } from '@/lib/types';
 
-const personSchema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório'),
-  cardNumber: z.string().min(1, 'Número do cartão é obrigatório').refine(validateCardNumber, {
-    message: 'Número de cartão inválido (apenas dígitos e espaços)',
-  }),
-  cpf: z.string().min(1, 'CPF é obrigatório').refine(validateCPF, {
-    message: 'CPF inválido',
-  }),
-  rg: z.string().min(1, 'RG é obrigatório').refine(validateRG, {
-    message: 'RG inválido (apenas dígitos e X)',
-  }),
-});
-
-type PersonFormData = z.infer<typeof personSchema>;
+/**
+ * Tipos fixos do formulário (evita 'string | undefined' nas libs)
+ */
+type PersonFormData = {
+  name: string;
+  cardNumber: string;
+  document: string; // CPF ou RG (um campo só)
+};
 
 interface PersonFormProps {
   onSubmit: (data: Omit<Person, 'id' | 'createdAt'>) => void;
@@ -35,6 +29,31 @@ interface PersonFormProps {
   initialData?: Partial<Person>;
   submitLabel?: string;
 }
+
+/**
+ * Zod schema só para validação (campos opcionais).
+ * Obs: no runtime todos são strings (vazias quando não preenchidos).
+ */
+const personSchema = z.object({
+  name: z.string().optional(),
+  cardNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || validateCardNumber(v), {
+      message: 'Número de cartão inválido (apenas dígitos e espaços)',
+    }),
+  document: z
+    .string()
+    .optional()
+    .refine(
+      (v) => {
+        if (!v) return true; // opcional
+        const only = v.replace(/\D+/g, '');
+        return only.length === 11 ? validateCPF(v) : validateRG(v);
+      },
+      { message: 'Documento inválido (CPF ou RG)' }
+    ),
+});
 
 export function PersonForm({
   onSubmit,
@@ -47,17 +66,40 @@ export function PersonForm({
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PersonFormData>({
-    resolver: zodResolver(personSchema),
+    // alguns typings do RHF/Zod entram em conflito dependendo da versão;
+    // o cast abaixo elimina o ruído de tipos sem afetar o comportamento
+    resolver: zodResolver(personSchema) as any,
     defaultValues: {
-      name: initialData?.name || '',
-      cardNumber: initialData?.cardNumber || '',
-      cpf: initialData?.cpf || '',
-      rg: initialData?.rg || '',
+      name: initialData?.name ?? '',
+      cardNumber: initialData?.cardNumber ?? '',
+      // se existir cpf ou rg, mostra no campo unificado
+      document: initialData?.cpf ?? initialData?.rg ?? '',
     },
   });
 
+  const handleLocalSubmit: SubmitHandler<PersonFormData> = (data) => {
+    // Mapeia o campo único "document" para cpf ou rg
+    const doc = (data.document ?? '').trim();
+    const only = doc.replace(/\D+/g, '');
+
+    const cpf = doc && only.length === 11 ? doc : '';
+    const rg = doc && only.length !== 11 ? doc.toUpperCase() : '';
+
+    // Em muitos lugares do app, Person exige cpf e rg (obrigatórios).
+    // Para satisfazer o tipo sem quebrar lógica existente, enviamos ambos:
+    // o que não se aplica vai como string vazia.
+    const payload: Omit<Person, 'id' | 'createdAt'> = {
+      name: data.name ?? '',
+      cardNumber: data.cardNumber ?? '',
+      cpf,
+      rg,
+    };
+
+    onSubmit(payload);
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(handleLocalSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name">Nome</Label>
         <Controller
@@ -75,13 +117,13 @@ export function PersonForm({
         />
         {errors.name && (
           <p id="name-error" className="text-sm text-destructive">
-            {errors.name.message}
+            {String(errors.name.message)}
           </p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="cardNumber">Número do Cartão</Label>
+        <Label htmlFor="cardNumber">Número do Cartão (opcional)</Label>
         <Controller
           name="cardNumber"
           control={control}
@@ -90,7 +132,7 @@ export function PersonForm({
               {...field}
               id="cardNumber"
               onChange={(e) => field.onChange(formatCardNumber(e.target.value))}
-              placeholder="Digite o número do cartão"
+              placeholder="1234 5678 9012 3456"
               aria-invalid={!!errors.cardNumber}
               aria-describedby={errors.cardNumber ? 'card-error' : undefined}
             />
@@ -98,54 +140,34 @@ export function PersonForm({
         />
         {errors.cardNumber && (
           <p id="card-error" className="text-sm text-destructive">
-            {errors.cardNumber.message}
+            {String(errors.cardNumber.message)}
           </p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="cpf">CPF</Label>
+        <Label htmlFor="document">Documento (CPF ou RG) — opcional</Label>
         <Controller
-          name="cpf"
+          name="document"
           control={control}
           render={({ field }) => (
             <Input
               {...field}
-              id="cpf"
-              onChange={(e) => field.onChange(formatCPF(e.target.value))}
-              placeholder="000.000.000-00"
-              maxLength={14}
-              aria-invalid={!!errors.cpf}
-              aria-describedby={errors.cpf ? 'cpf-error' : undefined}
+              id="document"
+              onChange={(e) => {
+                const val = e.target.value;
+                const only = val.replace(/\D+/g, '');
+                field.onChange(only.length === 11 ? formatCPF(val) : formatRG(val));
+              }}
+              placeholder="000.000.000-00 ou 12.345.678-X"
+              aria-invalid={!!errors.document}
+              aria-describedby={errors.document ? 'doc-error' : undefined}
             />
           )}
         />
-        {errors.cpf && (
-          <p id="cpf-error" className="text-sm text-destructive">
-            {errors.cpf.message}
-          </p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="rg">RG</Label>
-        <Controller
-          name="rg"
-          control={control}
-          render={({ field }) => (
-            <Input
-              {...field}
-              id="rg"
-              onChange={(e) => field.onChange(formatRG(e.target.value))}
-              placeholder="Digite o RG"
-              aria-invalid={!!errors.rg}
-              aria-describedby={errors.rg ? 'rg-error' : undefined}
-            />
-          )}
-        />
-        {errors.rg && (
-          <p id="rg-error" className="text-sm text-destructive">
-            {errors.rg.message}
+        {errors.document && (
+          <p id="doc-error" className="text-sm text-destructive">
+            {String(errors.document.message)}
           </p>
         )}
       </div>

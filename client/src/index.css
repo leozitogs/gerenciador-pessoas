@@ -174,4 +174,12 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+  :root{
+  --card-bg: 255 255 255;
+  }
+  body{
+    background: radial-gradient(1200px 600px at 10% 0%, rgba(0,255,255,0.15), transparent 55%),
+                radial-gradient(1200px 600px at 90% 10%, rgba(255,0,128,0.12), transparent 60%),
+                linear-gradient(180deg, #f8fafc, #ffffff);
+  }
 }

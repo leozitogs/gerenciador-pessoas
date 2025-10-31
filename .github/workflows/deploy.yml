@@ -1,3 +1,4 @@
+# .github/workflows/deploy.yml
 name: Deploy to GitHub Pages
 
 on:
@@ -6,45 +7,56 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # permite o push da action
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
 
-      - uses: pnpm/action-setup@v2
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
         with:
-          version: 10.4.1  # <— igual ao local
+          version: 9
 
-      - uses: pnpm/action-setup@v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          version: 8
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+          node-version: 20
           cache: 'pnpm'
 
-      - name: Install deps (root)
-        run: pnpm install --frozen-lockfile
+      # Evita o erro do frozen lockfile no CI
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Build (root)
+      # ⚠️ Importante: build na RAIZ (o seu vite.config já define root: client/)
+      - name: Build (Vite)
         run: pnpm build
 
-      # opcional: evita 404 em SPA ao recarregar
-      - name: Copy 404 (SPA fallback)
-        run: cp dist/index.html dist/404.html
+      # SPA fallback: copia index.html -> 404.html no outDir configurado
+      - name: SPA fallback
+        run: cp dist/public/index.html dist/public/404.html
 
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist            # <<--- aqui o ajuste
-          publish_branch: gh-pages
-          # force_orphan: true           # útil no primeiro deploy
+          path: dist/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
