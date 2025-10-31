@@ -51,9 +51,19 @@ export function documentoValido(input: string) {
   return tipoDocumento(input) === "cpf" ? validaCPF(input) : limpaRG(input).length >= 5;
 }
 export function mascaraDocumento(input: string) {
-  const f = formataDocumento(input);
-  // Deixa só últimos 3 visíveis
-  return f.replace(/[\dX](?=[\dX\W]{3})/g, "*");
+  // Mantém os 3 PRIMEIROS caracteres alfanuméricos e camufla o restante; preserva pontuação
+  const f = formataDocumento(input) || "";
+  let seen = 0;
+  return f
+    .split("")
+    .map((ch) => {
+      if (/[0-9A-Za-z]/.test(ch)) {
+        seen += 1;
+        return seen <= 3 ? ch : "*";
+      }
+      return ch;
+    })
+    .join("");
 }
 
 // ---------- Cartão (sem máscara) ----------

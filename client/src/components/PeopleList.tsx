@@ -28,9 +28,19 @@ function formatDocument(raw: string): string {
   return only.length === 11 ? formatCPF(raw) : formatRG(raw.toUpperCase());
 }
 
-/** Camufla mantendo só os 3 últimos visíveis e preservando pontuação */
+/** Camufla preservando pontuação e mantendo visíveis apenas os 3 PRIMEIROS caracteres alfanuméricos */
 function maskDocumentPretty(s: string): string {
-  return (s || '').replace(/[0-9A-Za-z](?=[0-9A-Za-z\W]{3})/g, '*');
+  let seen = 0;
+  return (s || '')
+    .split('')
+    .map((ch) => {
+      if (/[0-9A-Za-z]/.test(ch)) {
+        seen += 1;
+        return seen <= 3 ? ch : '*';
+      }
+      return ch;
+    })
+    .join('');
 }
 
 function RowComponent({
@@ -65,7 +75,7 @@ function RowComponent({
 
   return (
     <div style={style} className="px-4">
-      <Card className="p-4 flex items-center justify-between gap-4 border border-white/30 bg-white/60 backdrop-blur-md shadow-lg transition hover:shadow-xl hover:scale-[1.01]">
+      <Card className="glass-card hover-grow card-appear p-4 flex items-center justify-between gap-4">
         <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4">
           <div>
             <p className="text-xs text-muted-foreground">Nome</p>
@@ -111,7 +121,7 @@ export function PeopleList({
 }: PeopleListProps) {
   if (people.length === 0) {
     return (
-      <Card className="p-8 text-center border border-white/30 bg-white/60 backdrop-blur-md">
+      <Card className="glass-card card-appear p-8 text-center">
         <p className="text-muted-foreground">
           Nenhuma pessoa cadastrada. Adicione a primeira pessoa usando o formulário acima.
         </p>

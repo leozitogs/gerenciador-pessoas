@@ -68,22 +68,19 @@ export function ExportPDFDialog({
       setError('O título é obrigatório');
       return;
     }
-
     setError('');
-    onExport(title, selectedType);
+    onExport(title.trim(), selectedType);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isGenerating) {
-      handleExport();
-    } else if (e.key === 'Escape') {
-      onOpenChange(false);
-    }
+    if (e.key === 'Enter' && !isGenerating) handleExport();
+    else if (e.key === 'Escape') onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl" onKeyDown={handleKeyDown}>
+      {/* glass + animação de entrada */}
+      <DialogContent className="glass-card card-appear max-w-2xl" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>Exportar PDF</DialogTitle>
           <DialogDescription>
@@ -103,7 +100,7 @@ export function ExportPDFDialog({
                 setTitle(e.target.value);
                 setError('');
               }}
-              placeholder="Ex: Lista de Participantes - Evento 2025"
+              placeholder="Ex: Lista de Participantes – Evento 2025"
               disabled={isGenerating}
               aria-invalid={!!error}
               aria-describedby={error ? 'title-error' : undefined}
@@ -124,24 +121,16 @@ export function ExportPDFDialog({
                   type="button"
                   onClick={() => setSelectedType(type)}
                   disabled={isGenerating}
-                  className={`
-                    p-4 rounded-lg border-2 transition-all text-left
-                    ${
-                      selectedType === type
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }
-                    ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  `}
+                  className={`glass-card hover-grow p-4 rounded-lg border-2 transition-all text-left ${
+                    selectedType === type ? 'border-primary bg-primary/5' : 'border-border'
+                  } ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   aria-pressed={selectedType === type}
                 >
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">{icon}</div>
                     <div className="flex-1">
                       <p className="font-medium mb-1">{label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {description}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{description}</p>
                     </div>
                   </div>
                 </button>
@@ -150,11 +139,7 @@ export function ExportPDFDialog({
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isGenerating}
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating}>
               Cancelar
             </Button>
             <Button onClick={handleExport} disabled={isGenerating}>
