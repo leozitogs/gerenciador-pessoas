@@ -1,19 +1,25 @@
-// client/src/components/ToggleMaskButton.tsx
-import React from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-type Props = { masked: boolean; onToggle: () => void };
+interface Props {
+  masked: boolean;
+  onToggle: () => void;
+}
 
 export default function ToggleMaskButton({ masked, onToggle }: Props) {
   return (
-    <button
+    <Button
+      type="button"
+      variant="outline"
       onClick={onToggle}
-      className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-md transition hover:scale-[1.02] hover:bg-white/20"
-      title={masked ? "Mostrar documento" : "Ocultar documento"}
-      aria-pressed={!masked}
+      aria-pressed={!masked ? 'true' : 'false'}
+      className="gap-2 transition active:scale-[.98]"
+      title={masked ? 'Mostrar Documento' : 'Ocultar Documento'}
     >
-      {masked ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-      <span className="text-sm">{masked ? "Mostrar Doc." : "Ocultar Doc."}</span>
-    </button>
+      <span className="inline-block transition-transform duration-150 will-change-transform">
+        {masked ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 rotate-6" />}
+      </span>
+      {masked ? 'Mostrar Doc.' : 'Ocultar Doc.'}
+    </Button>
   );
 }

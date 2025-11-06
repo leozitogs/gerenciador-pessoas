@@ -42,7 +42,7 @@ const personSchema = z.object({
     .optional()
     .refine(
       (v) => {
-        if (!v) return true; // opcional
+        if (!v) return true;
         const only = v.replace(/\D+/g, '');
         return only.length === 11 ? validateCPF(v) : validateRG(v);
       },
@@ -66,7 +66,6 @@ export function PersonForm({
     defaultValues: {
       name: initialData?.name ?? '',
       cardNumber: initialData?.cardNumber ?? '',
-      // se existir cpf ou rg, mostra no campo unificado
       document: initialData?.cpf ?? initialData?.rg ?? '',
     },
   });
@@ -87,7 +86,7 @@ export function PersonForm({
 
     onSubmit(payload);
 
-    // Se for criação (sem initialData), limpa os campos após adicionar
+    // Limpa após adicionar (somente na criação)
     if (!initialData) {
       reset({
         name: '',
@@ -108,6 +107,7 @@ export function PersonForm({
             <Input
               {...field}
               id="name"
+              autoFocus
               placeholder="Digite o nome"
               aria-invalid={!!errors.name}
               aria-describedby={errors.name ? 'name-error' : undefined}
