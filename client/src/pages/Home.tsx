@@ -1,6 +1,14 @@
+// client/src/pages/Home.tsx
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { PersonForm } from '@/components/PersonForm';
 import { PeopleList } from '@/components/PeopleList';
 import { EditPersonDialog } from '@/components/EditPersonDialog';
@@ -8,10 +16,11 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ExportPDFDialog } from '@/components/ExportPDFDialog';
 import { usePeople } from '@/hooks/usePeople';
 import { usePDFExport } from '@/hooks/usePDFExport';
-import { toast } from 'sonner';
-import { Trash2, Undo2, FileDown, Users, Eye, EyeOff} from 'lucide-react';
+import { Trash2, Undo2, FileDown, Users } from 'lucide-react';
 import type { Person, PDFExportType } from '@/lib/types';
 import { APP_TITLE } from '@/const';
+import { toast } from 'sonner';
+import ToggleMaskButton from '@/components/ToggleMaskButton';
 
 export default function Home() {
   const {
@@ -33,9 +42,7 @@ export default function Home() {
   const [personToRemove, setPersonToRemove] = useState<string | null>(null);
   const [showRemoveAllDialog, setShowRemoveAllDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  // controla se CPF/RG aparece camuflado
   const [maskDocuments, setMaskDocuments] = useState(true);
-
 
   const handleAddPerson = (data: Omit<Person, 'id' | 'createdAt'>) => {
     addPerson(data);
@@ -81,8 +88,14 @@ export default function Home() {
 
   const handleExportPDF = async (title: string, type: PDFExportType) => {
     saveLastUsedTitle(title);
-    const success = await exportPDF({ people, title, type });
-    
+
+    const success = await exportPDF({
+      people,
+      title,
+      type,
+      maskDocuments,
+    });
+
     if (success) {
       toast.success('PDF gerado com sucesso!');
       setShowExportDialog(false);
@@ -94,7 +107,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-red-50">
       <div className="container py-8 space-y-6">
-        {/* Header */}
+        {/* Header central (sem barra fixa extra) */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-red-600 bg-clip-text text-transparent">
             {APP_TITLE}
@@ -104,7 +117,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Storage Error Alert */}
+        {/* Alert de erro de storage */}
         {storageError && (
           <Card className="border-destructive">
             <CardContent className="pt-6">
@@ -113,8 +126,8 @@ export default function Home() {
           </Card>
         )}
 
-        {/* Add Person Form */}
-        <Card className="backdrop-blur-sm bg-white/80">
+        {/* Formulário */}
+        <Card className="backdrop-blur-sm bg-white/80 shadow-lg shadow-blue-100/40">
           <CardHeader>
             <CardTitle>Adicionar Pessoa</CardTitle>
             <CardDescription>
@@ -126,16 +139,24 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Action Bar */}
+        {/* Barra de ações */}
         <div className="sticky top-4 z-10 backdrop-blur-sm bg-white/80 rounded-lg border p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-muted-foreground" />
               <span className="font-medium">
-                {people.length} {people.length === 1 ? 'pessoa' : 'pessoas'}
+                {people.length}{' '}
+                {people.length === 1 ? 'pessoa' : 'pessoas'}
               </span>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Toggle de máscara de documento */}
+              <ToggleMaskButton
+                masked={maskDocuments}
+                onToggle={() => setMaskDocuments((prev) => !prev)}
+              />
+
               {canUndo && (
                 <Button
                   variant="outline"
@@ -147,6 +168,7 @@ export default function Home() {
                   Desfazer
                 </Button>
               )}
+
               {people.length > 0 && (
                 <>
                   <Button
@@ -158,18 +180,6 @@ export default function Home() {
                   >
                     <FileDown className="h-4 w-4" />
                     Exportar PDF
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setMaskDocuments(v => !v)}
-                    className="gap-2"
-                    aria-pressed={!maskDocuments}
-                    title={maskDocuments ? 'Mostrar documento' : 'Ocultar documento'}
-                  >
-                    {maskDocuments ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    {maskDocuments ? 'Mostrar Doc.' : 'Ocultar Doc.'}
                   </Button>
 
                   <Button
@@ -187,8 +197,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* People List */}
-        <Card className="backdrop-blur-sm bg-white/80">
+        {/* Lista */}
+        <Card className="backdrop-blur-sm bg-white/80 shadow-lg shadow-blue-100/40">
           <CardHeader>
             <CardTitle>Lista de Pessoas</CardTitle>
             <CardDescription>
@@ -200,7 +210,7 @@ export default function Home() {
               people={people}
               onEdit={setEditingPerson}
               onRemove={setPersonToRemove}
-              maskDocuments={maskDocuments} 
+              maskDocuments={maskDocuments}
             />
           </CardContent>
         </Card>
@@ -226,9 +236,9 @@ export default function Home() {
           open={showRemoveAllDialog}
           onOpenChange={setShowRemoveAllDialog}
           onConfirm={handleRemoveAll}
-          title="Remover Todas as Pessoas"
-          description={`Tem certeza que deseja remover todas as ${people.length} pessoas? Esta ação pode ser desfeita.`}
-          confirmLabel="Remover Todas"
+          title="Remover Todos"
+          description="Tem certeza que deseja remover todas as pessoas? Esta ação pode ser desfeita."
+          confirmLabel="Remover Todos"
         />
 
         <ExportPDFDialog

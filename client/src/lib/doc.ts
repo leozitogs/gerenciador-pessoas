@@ -1,73 +1,28 @@
 // client/src/lib/doc.ts
-export function soDigitos(v: string) {
-  return (v || "").replace(/\D+/g, "");
+
+/**
+ * Normaliza o documento apenas removendo espaços nas pontas.
+ * Não insere pontos, traços ou qualquer formatação automática.
+ * O valor exibido é o que o usuário digitou.
+ */
+export function formataDocumento(input: string): string {
+  return (input || '').trim();
 }
 
-// ---------- CPF ----------
-export function validaCPF(cpf: string) {
-  const s = soDigitos(cpf);
-  if (s.length !== 11 || /^(\d)\1{10}$/.test(s)) return false;
+/**
+ * Retorna o documento mascarado:
+ * mantém apenas os 3 primeiros caracteres alfanuméricos (0-9, A-Z),
+ * o restante vira "*".
+ * Caracteres não alfanuméricos (ponto, traço, espaço) são mantidos como estão.
+ */
+export function mascaraDocumento(input: string): string {
+  const value = formataDocumento(input);
+  if (!value) return '';
 
-  const calc = (b: number) => {
-    let sum = 0;
-    for (let i = 0; i < b - 1; i++) sum += parseInt(s[i], 10) * (b - i);
-    const r = (sum * 10) % 11;
-    return r === 10 ? 0 : r;
-  };
-  return calc(10) === parseInt(s[9], 10) && calc(11) === parseInt(s[10], 10);
-}
+  let count = 0;
 
-export function formataCPF(cpf: string) {
-  const s = soDigitos(cpf).slice(0, 11);
-  if (s.length <= 3) return s;
-  if (s.length <= 6) return `${s.slice(0, 3)}.${s.slice(3)}`;
-  if (s.length <= 9) return `${s.slice(0, 3)}.${s.slice(3, 6)}.${s.slice(6)}`;
-  return `${s.slice(0, 3)}.${s.slice(3, 6)}.${s.slice(6, 9)}-${s.slice(9)}`;
-}
-
-// ---------- RG (simplificado e permissivo: dígitos e X) ----------
-export function limpaRG(v: string) {
-  return (v || "").toUpperCase().replace(/[^0-9X]/g, "");
-}
-export function formataRG(rg: string) {
-  const s = limpaRG(rg).slice(0, 12);
-  // Estilo 2.XXX.XXX-X adaptativo (não é estadual-específico)
-  if (s.length <= 2) return s;
-  if (s.length <= 5) return `${s.slice(0, 2)}.${s.slice(2)}`;
-  if (s.length <= 8) return `${s.slice(0, 2)}.${s.slice(2, 5)}.${s.slice(5)}`;
-  return `${s.slice(0, 2)}.${s.slice(2, 5)}.${s.slice(5, 8)}-${s.slice(8)}`;
-}
-
-// ---------- Documento Unificado ----------
-export type DocTipo = "cpf" | "rg";
-export function tipoDocumento(input: string): DocTipo {
-  const dig = soDigitos(input);
-  return dig.length === 11 ? "cpf" : "rg";
-}
-export function formataDocumento(input: string) {
-  return tipoDocumento(input) === "cpf" ? formataCPF(input) : formataRG(input);
-}
-export function documentoValido(input: string) {
-  return tipoDocumento(input) === "cpf" ? validaCPF(input) : limpaRG(input).length >= 5;
-}
-export function mascaraDocumento(input: string) {
-  // Mantém os 3 PRIMEIROS caracteres alfanuméricos e camufla o restante; preserva pontuação
-  const f = formataDocumento(input) || "";
-  let seen = 0;
-  return f
-    .split("")
-    .map((ch) => {
-      if (/[0-9A-Za-z]/.test(ch)) {
-        seen += 1;
-        return seen <= 3 ? ch : "*";
-      }
-      return ch;
-    })
-    .join("");
-}
-
-// ---------- Cartão (sem máscara) ----------
-export function formataCartao(v: string) {
-  const s = soDigitos(v).slice(0, 16);
-  return s.replace(/(\d{4})(?=\d)/g, "$1 ");
+  return value.replace(/[0-9A-Za-z]/g, (ch) => {
+    count += 1;
+    return count <= 3 ? ch : '*';
+  });
 }

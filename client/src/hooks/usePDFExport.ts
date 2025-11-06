@@ -1,45 +1,52 @@
-import { useState, useCallback } from 'react';
-import type { PDFExportOptions } from '@/lib/types';
+// client/src/hooks/usePDFExport.ts
+
+import { useState } from 'react';
 import { generatePDF, generatePDFFilename } from '@/lib/pdfGenerator';
+import type { PDFExportOptions } from '@/lib/types';
 
 export function usePDFExport() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const exportPDF = useCallback(async (options: PDFExportOptions) => {
+  const exportPDF = async (options: PDFExportOptions): Promise<boolean> => {
+    if (!options.people || options.people.length === 0) {
+      setError('Nenhuma pessoa cadastrada para exportar.');
+      return false;
+    }
+
     setIsGenerating(true);
     setError(null);
 
     try {
-      // Gerar PDF diretamente (sem Web Worker por enquanto)
-      const pdfBytes = await generatePDF(options);
+      // generatePDF retorna Uint8Array
+      const bytes: Uint8Array = await generatePDF(options);
+      const filename = generatePDFFilename(options.title);
 
-      // Criar blob e fazer download
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      // Uint8Array é um ArrayBufferView, aceito como BlobPart
+      const blob = new Blob([bytes], {
+        type: 'application/pdf',
+      });
+
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = generatePDFFilename(options.title);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
       URL.revokeObjectURL(url);
 
-      setIsGenerating(false);
       return true;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Erro ao gerar PDF';
-      setError(errorMessage);
-      setIsGenerating(false);
-      console.error('Erro ao gerar PDF:', err);
+      console.error(err);
+      setError('Erro ao gerar PDF.');
       return false;
+    } finally {
+      setIsGenerating(false);
     }
-  }, []);
-
-  return {
-    exportPDF,
-    isGenerating,
-    error,
   };
+
+  return { exportPDF, isGenerating, error };
 }

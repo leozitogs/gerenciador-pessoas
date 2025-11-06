@@ -1,18 +1,18 @@
+// client/src/components/PeopleList.tsx
+
 import { List } from 'react-window';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { Person } from '@/lib/types';
-import { formatCardNumber, formatCPF, formatRG } from '@/lib/validation';
+import { formataDocumento, mascaraDocumento } from '@/lib/doc';
 import type { CSSProperties } from 'react';
-import { useState } from 'react';
 
 interface PeopleListProps {
   people: Person[];
   onEdit: (person: Person) => void;
   onRemove: (id: string) => void;
-  /** Controla se o Documento aparece camuflado. Default: true */
-  maskDocuments?: boolean;
+  maskDocuments: boolean;
 }
 
 interface RowComponentProps {
@@ -22,25 +22,21 @@ interface RowComponentProps {
   maskDocuments: boolean;
 }
 
-function formatDocument(raw: string): string {
-  if (!raw) return '';
-  const only = raw.replace(/\D+/g, '');
-  return only.length === 11 ? formatCPF(raw) : formatRG(raw.toUpperCase());
+function getRawDocument(person: Person): string {
+  return (
+    person.document ||
+    person.cpf ||
+    person.rg ||
+    ''
+  );
 }
 
-/** Camufla preservando pontuação e mantendo visíveis apenas os 3 PRIMEIROS */
-function maskDocumentPretty(s: string): string {
-  let seen = 0;
-  return (s || '')
-    .split('')
-    .map((ch) => {
-      if (/[0-9A-Za-z]/.test(ch)) {
-        seen += 1;
-        return seen <= 3 ? ch : '*';
-      }
-      return ch;
-    })
-    .join('');
+function getDisplayDocument(person: Person, maskDocuments: boolean): string {
+  const raw = getRawDocument(person);
+  if (!raw) return '—';
+  return maskDocuments
+    ? mascaraDocumento(raw)
+    : formataDocumento(raw);
 }
 
 function RowComponent({
@@ -60,69 +56,52 @@ function RowComponent({
   };
 } & RowComponentProps) {
   const person = people[index];
-  const [isRemoving, setIsRemoving] = useState(false);
-  const [flashEdit, setFlashEdit] = useState(false);
-
-  const shownCard = formatCardNumber(person.cardNumber || '');
-
-  const rawDoc = person.cpf || person.rg || '';
-  const formattedDoc = rawDoc ? formatDocument(rawDoc) : '';
-  const shownDoc = formattedDoc
-    ? maskDocuments
-      ? maskDocumentPretty(formattedDoc)
-      : formattedDoc
-    : '—';
-
-  const handleRemove = () => {
-    setIsRemoving(true);
-    // anima 120ms e só então remove do estado pai
-    setTimeout(() => onRemove(person.id), 140);
-  };
-
-  const handleEdit = () => {
-    setFlashEdit(true);
-    setTimeout(() => setFlashEdit(false), 450);
-    onEdit(person);
-  };
+  const card = person.cardNumber || '—';
+  const document = getDisplayDocument(person, maskDocuments);
 
   return (
     <div style={style} className="px-4">
-      <Card
-        className={`glass-card hover-grow p-4 flex items-center justify-between gap-4 ${
-          isRemoving ? 'shrink-out' : 'card-appear'
-        } ${flashEdit ? 'flash-edit' : ''}`}
-      >
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4">
+      <Card className="glass-card hover-grow card-appear p-4 flex items-center justify-between gap-4">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
           <div>
             <p className="text-xs text-muted-foreground">Nome</p>
-            <p className="font-medium truncate">{person.name || '(sem nome)'}</p>
+            <p className="font-medium truncate">
+              {person.name || '(sem nome)'}
+            </p>
           </div>
+
           <div>
             <p className="text-xs text-muted-foreground">Cartão</p>
-            <p className="font-mono text-sm truncate">{shownCard || '—'}</p>
+            <p className="font-mono text-sm truncate">
+              {card}
+            </p>
           </div>
+
           <div>
             <p className="text-xs text-muted-foreground">Documento</p>
-            <p className="font-mono text-sm truncate">{shownDoc}</p>
+            <p className="font-mono text-sm truncate">
+              {document}
+            </p>
           </div>
-          <div className="flex gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleEdit}
-              aria-label={`Editar ${person.name || 'pessoa'}`}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRemove}
-              aria-label={`Remover ${person.name || 'pessoa'}`}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
+        </div>
+
+        <div className="flex gap-2 shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onEdit(person)}
+            aria-label={`Editar ${person.name || 'pessoa'}`}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRemove(person.id)}
+            aria-label={`Remover ${person.name || 'pessoa'}`}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
         </div>
       </Card>
     </div>
@@ -133,7 +112,7 @@ export function PeopleList({
   people,
   onEdit,
   onRemove,
-  maskDocuments = true,
+  maskDocuments,
 }: PeopleListProps) {
   if (people.length === 0) {
     return (

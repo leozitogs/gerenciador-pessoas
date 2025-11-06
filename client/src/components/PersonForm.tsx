@@ -1,3 +1,5 @@
+// client/src/components/PersonForm.tsx
+
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,11 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import {
-  validateCPF,
-  validateRG,
   validateCardNumber,
-  formatCPF,
-  formatRG,
   formatCardNumber,
 } from '@/lib/validation';
 import type { Person } from '@/lib/types';
@@ -19,7 +17,7 @@ import type { Person } from '@/lib/types';
 type PersonFormData = {
   name: string;
   cardNumber: string;
-  document: string; // CPF ou RG em um campo só
+  document: string; // genérico (CPF, RG ou qualquer identificador)
 };
 
 interface PersonFormProps {
@@ -29,24 +27,31 @@ interface PersonFormProps {
   submitLabel?: string;
 }
 
+/**
+ * Regra:
+ * - Nenhum campo obrigatório.
+ * - cardNumber: usa validação existente (apenas dígitos, etc).
+ * - document: genérico, sem formato automático; só bloqueia coisa muito absurda.
+ */
 const personSchema = z.object({
   name: z.string().optional(),
   cardNumber: z
     .string()
     .optional()
     .refine((v) => !v || validateCardNumber(v), {
-      message: 'Número de cartão inválido (apenas dígitos e espaços)',
+      message: 'Número de cartão inválido.',
     }),
   document: z
     .string()
     .optional()
     .refine(
-      (v) => {
-        if (!v) return true;
-        const only = v.replace(/\D+/g, '');
-        return only.length === 11 ? validateCPF(v) : validateRG(v);
-      },
-      { message: 'Documento inválido (CPF ou RG)' }
+      (v) =>
+        !v ||
+        /^[0-9A-Za-z.\-\/\s]{3,40}$/.test(v),
+      {
+        message:
+          'Documento inválido. Use apenas números, letras e . - /',
+      }
     ),
 });
 
@@ -66,27 +71,26 @@ export function PersonForm({
     defaultValues: {
       name: initialData?.name ?? '',
       cardNumber: initialData?.cardNumber ?? '',
-      document: initialData?.cpf ?? initialData?.rg ?? '',
+      // prioriza `document`; se não existir, tenta cpf/rg antigos
+      document:
+        initialData?.document ??
+        initialData?.cpf ??
+        initialData?.rg ??
+        '',
     },
   });
 
   const handleLocalSubmit: SubmitHandler<PersonFormData> = (data) => {
-    const doc = (data.document ?? '').trim();
-    const only = doc.replace(/\D+/g, '');
-
-    const cpf = doc && only.length === 11 ? doc : '';
-    const rg = doc && only.length !== 11 ? doc.toUpperCase() : '';
-
     const payload: Omit<Person, 'id' | 'createdAt'> = {
-      name: data.name ?? '',
-      cardNumber: data.cardNumber ?? '',
-      cpf,
-      rg,
+      name: (data.name || '').trim(),
+      cardNumber: (data.cardNumber || '').trim(),
+      document: (data.document || '').trim(),
+      // cpf / rg antigos não são mais preenchidos automaticamente
     };
 
     onSubmit(payload);
 
-    // Limpa após adicionar (somente na criação)
+    // criação: limpa tudo pra fluxo rápido
     if (!initialData) {
       reset({
         name: '',
@@ -133,7 +137,7 @@ export function PersonForm({
               onChange={(e) =>
                 field.onChange(formatCardNumber(e.target.value))
               }
-              placeholder="1234 5678 9012 3456"
+              placeholder="Ex: 1234"
               aria-invalid={!!errors.cardNumber}
               aria-describedby={errors.cardNumber ? 'card-error' : undefined}
             />
@@ -147,7 +151,9 @@ export function PersonForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="document">Documento (CPF ou RG) — opcional</Label>
+        <Label htmlFor="document">
+          Documento (CPF, RG ou outro) — opcional
+        </Label>
         <Controller
           name="document"
           control={control}
@@ -155,14 +161,8 @@ export function PersonForm({
             <Input
               {...field}
               id="document"
-              onChange={(e) => {
-                const val = e.target.value;
-                const only = val.replace(/\D+/g, '');
-                field.onChange(
-                  only.length === 11 ? formatCPF(val) : formatRG(val)
-                );
-              }}
-              placeholder="000.000.000-00 ou 12.345.678-X"
+              onChange={(e) => field.onChange(e.target.value)}
+              placeholder="Digite exatamente como deseja ver (ex: 13166788964)"
               aria-invalid={!!errors.document}
               aria-describedby={errors.document ? 'doc-error' : undefined}
             />
