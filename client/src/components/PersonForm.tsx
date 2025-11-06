@@ -1,9 +1,11 @@
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 import {
   validateCPF,
   validateRG,
@@ -14,13 +16,10 @@ import {
 } from '@/lib/validation';
 import type { Person } from '@/lib/types';
 
-/**
- * Tipos fixos do formulário (evita 'string | undefined' nas libs)
- */
 type PersonFormData = {
   name: string;
   cardNumber: string;
-  document: string; // CPF ou RG (um campo só)
+  document: string; // CPF ou RG em um campo só
 };
 
 interface PersonFormProps {
@@ -30,10 +29,6 @@ interface PersonFormProps {
   submitLabel?: string;
 }
 
-/**
- * Zod schema só para validação (campos opcionais).
- * Obs: no runtime todos são strings (vazias quando não preenchidos).
- */
 const personSchema = z.object({
   name: z.string().optional(),
   cardNumber: z
@@ -64,10 +59,9 @@ export function PersonForm({
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<PersonFormData>({
-    // alguns typings do RHF/Zod entram em conflito dependendo da versão;
-    // o cast abaixo elimina o ruído de tipos sem afetar o comportamento
     resolver: zodResolver(personSchema) as any,
     defaultValues: {
       name: initialData?.name ?? '',
@@ -78,16 +72,12 @@ export function PersonForm({
   });
 
   const handleLocalSubmit: SubmitHandler<PersonFormData> = (data) => {
-    // Mapeia o campo único "document" para cpf ou rg
     const doc = (data.document ?? '').trim();
     const only = doc.replace(/\D+/g, '');
 
     const cpf = doc && only.length === 11 ? doc : '';
     const rg = doc && only.length !== 11 ? doc.toUpperCase() : '';
 
-    // Em muitos lugares do app, Person exige cpf e rg (obrigatórios).
-    // Para satisfazer o tipo sem quebrar lógica existente, enviamos ambos:
-    // o que não se aplica vai como string vazia.
     const payload: Omit<Person, 'id' | 'createdAt'> = {
       name: data.name ?? '',
       cardNumber: data.cardNumber ?? '',
@@ -96,6 +86,15 @@ export function PersonForm({
     };
 
     onSubmit(payload);
+
+    // Se for criação (sem initialData), limpa os campos após adicionar
+    if (!initialData) {
+      reset({
+        name: '',
+        cardNumber: '',
+        document: '',
+      });
+    }
   };
 
   return (
@@ -131,7 +130,9 @@ export function PersonForm({
             <Input
               {...field}
               id="cardNumber"
-              onChange={(e) => field.onChange(formatCardNumber(e.target.value))}
+              onChange={(e) =>
+                field.onChange(formatCardNumber(e.target.value))
+              }
               placeholder="1234 5678 9012 3456"
               aria-invalid={!!errors.cardNumber}
               aria-describedby={errors.cardNumber ? 'card-error' : undefined}
@@ -157,7 +158,9 @@ export function PersonForm({
               onChange={(e) => {
                 const val = e.target.value;
                 const only = val.replace(/\D+/g, '');
-                field.onChange(only.length === 11 ? formatCPF(val) : formatRG(val));
+                field.onChange(
+                  only.length === 11 ? formatCPF(val) : formatRG(val)
+                );
               }}
               placeholder="000.000.000-00 ou 12.345.678-X"
               aria-invalid={!!errors.document}
